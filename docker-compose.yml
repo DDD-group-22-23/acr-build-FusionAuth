@@ -13,18 +13,17 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - db_net
+      - dbnet
     restart: unless-stopped
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - dbdata:/var/lib/postgresql/data
 
   search:
-    image: recipethesaurus.azurecr.io/elasticsearch:7.17.0
+    image: recipethesaurus.azurecr.io/elasticsearch:8.6.1
     container_name: search
     environment:
-      cluster.name: fusionauth
-      bootstrap.memory_lock: "true"
-      discovery.type: single-node
+      ELASTICSEARCH_CLUSTER_NAME: fusionauth
+      ELASTICSEARCH_IS_DEDICATED_NODE: yes 
       ES_JAVA_OPTS: ${ES_JAVA_OPTS}
     healthcheck:
       test: [ "CMD", "curl",  "--fail" ,"--write-out", "'HTTP %{http_code}'", "--silent", "--output", "/dev/null", "http://localhost:9200/" ]
@@ -32,14 +31,14 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - search_net
+      - searchnet
     restart: unless-stopped
     ulimits:
       memlock:
         soft: -1
         hard: -1
     volumes:
-      - search_data:/usr/share/elasticsearch/data
+      - searchdata:/usr/share/elasticsearch/data
 
   fusionauth:
     image: recipethesaurus.azurecr.io/fusionauth-app:latest
@@ -61,21 +60,33 @@ services:
       SEARCH_TYPE: elasticsearch
 
     networks:
-      - db_net
-      - search_net
+      - dbnet
+      - searchnet
     restart: unless-stopped
     ports:
       - 9011:9011
     volumes:
-      - fusionauth_config:/usr/local/fusionauth/config
+      - fusionauthconfig:/usr/local/fusionauth/config
 
 networks:
-  db_net:
-    driver: bridge
-  search_net:
-    driver: bridge
+  dbnet:
+    driver: azure-vnet 
+  searchnet:
+    driver: azure
 
 volumes:
-  db_data:
-  fusionauth_config:
-  search_data:
+  dbdata:
+    driver: azure_file
+    driver_opts:
+     share_name: dbdata
+     storage_account_name: recipethesaurusstorage
+  fusionauthconfig:
+   driver: azure_file
+   driver_opts:
+    share_name: fusionauthconfig
+    storage_account_name: recipethesaurusstorage
+  searchdata:
+   driver: azure_file
+   driver_opts:
+    share_name: searchdata
+    storage_account_name: recipethesaurusstorage
